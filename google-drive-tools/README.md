@@ -1,4 +1,4 @@
-# Readme for Google Data Pull Tool
+# Readme for Google Drive Analysis Tool
 
 A descriptive guide to the scripts for analysing files on Google Drive. For technical requirements please see the SETUP.md file.
 
