@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Location Logger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .location-info {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        .error {
+            background-color: #ffe8e8;
+            color: #d00;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        .history {
+            margin-top: 30px;
+        }
+        .location-entry {
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📍 GPS Location Logger</h1>
+        <p>Click the button below to capture your current GPS location.</p>
+        
+        <button id="getLocationBtn" onclick="getCurrentLocation()">
+            Get My Location
+        </button>
+        
+        <button id="downloadBtn" onclick="downloadLocations()" style="background-color: #2196F3;">
+            Download Location History
+        </button>
+        
+        <div id="locationInfo" class="location-info"></div>
+        <div id="errorMsg" class="error"></div>
+        
+        <div class="history">
+            <h3>Location History</h3>
+            <button onclick="clearHistory()" style="background-color: #f44336; font-size: 14px; padding: 10px;">
+                Clear History
+            </button>
+            <div id="locationHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        let locationHistory = JSON.parse(localStorage.getItem('locationHistory') || '[]');
+
+        function getCurrentLocation() {
+            const btn = document.getElementById('getLocationBtn');
+            const locationInfo = document.getElementById('locationInfo');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // Hide previous results
+            locationInfo.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.textContent = 'Getting Location...';
+            
+            if (!navigator.geolocation) {
+                showError('Geolocation is not supported by this browser.');
+                resetButton();
+                return;
+            }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    const timestamp = new Date().toLocaleString();
+                    
+                    // Display current location
+                    locationInfo.innerHTML = `
+                        <h3>📍 Current Location</h3>
+                        <p><strong>Latitude:</strong> ${lat.toFixed(6)}</p>
+                        <p><strong>Longitude:</strong> ${lng.toFixed(6)}</p>
+                        <p><strong>Accuracy:</strong> ±${accuracy.toFixed(0)} meters</p>
+                        <p><strong>Time:</strong> ${timestamp}</p>
+                        <p><a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">View on Google Maps</a></p>
+                    `;
+                    locationInfo.style.display = 'block';
+                    
+                    // Save to history
+                    const locationEntry = {
+                        latitude: lat,
+                        longitude: lng,
+                        accuracy: accuracy,
+                        timestamp: timestamp,
+                        iso_timestamp: new Date().toISOString()
+                    };
+                    
+                    locationHistory.unshift(locationEntry);
+                    localStorage.setItem('locationHistory', JSON.stringify(locationHistory));
+                    
+                    updateHistoryDisplay();
+                    resetButton();
+                },
+                function(error) {
+                    let errorMessage = 'Unknown error occurred.';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location access denied by user.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information is unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Location request timed out.';
+                            break;
+                    }
+                    showError(errorMessage);
+                    resetButton();
+                },
+                options
+            );
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+        }
+
+        function resetButton() {
+            const btn = document.getElementById('getLocationBtn');
+            btn.disabled = false;
+            btn.textContent = 'Get My Location';
+        }
+
+        function updateHistoryDisplay() {
+            const historyDiv = document.getElementById('locationHistory');
+            
+            if (locationHistory.length === 0) {
+                historyDiv.innerHTML = '<p>No locations recorded yet.</p>';
+                return;
+            }
+            
+            historyDiv.innerHTML = locationHistory.map(entry => `
+                <div class="location-entry">
+                    <div><strong>Lat:</strong> ${entry.latitude.toFixed(6)}, <strong>Lng:</strong> ${entry.longitude.toFixed(6)}</div>
+                    <div class="timestamp">${entry.timestamp} (±${entry.accuracy.toFixed(0)}m)</div>
+                </div>
+            `).join('');
+        }
+
+        function downloadLocations() {
+            if (locationHistory.length === 0) {
+                alert('No location data to download.');
+                return;
+            }
+            
+            // Create CSV content
+            let csvContent = 'Timestamp,Latitude,Longitude,Accuracy\n';
+            locationHistory.forEach(entry => {
+                csvContent += `"${entry.timestamp}",${entry.latitude},${entry.longitude},${entry.accuracy}\n`;
+            });
+            
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `location_history_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all location history?')) {
+                locationHistory = [];
+                localStorage.removeItem('locationHistory');
+                updateHistoryDisplay();
+            }
+        }
+
+        // Load history on page load
+        window.onload = function() {
+            updateHistoryDisplay();
+        };
+    </script>
+</body>
+</html>
