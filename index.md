@@ -1,6 +1,8 @@
-# Web Tools
+# RTFM Tools
 
-This page has links to tools that have web interfaces in this repository.
+This repository has tools developed by RTFM Club. 
+
+This page has links to any of the tools that have web interfaces.
 
 ## Available Tools
 
